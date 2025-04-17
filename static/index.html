@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><title>Twitter Updater</title></head>
+<body>
+  <h1>Click to Update Twitter</h1>
+  <button onclick="updateTwitter()">Update Profile</button>
+
+  <script>
+    async function updateTwitter() {
+      const res = await fetch('/update-twitter', { method: 'POST' });
+      const data = await res.json();
+      alert(data.message || data.error);
+    }
+  </script>
+</body>
+</html>
