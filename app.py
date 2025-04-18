@@ -64,30 +64,30 @@ def update_twitter():
     try:
         # Update profile name and bio
         api.update_profile(name=new_name, description=new_bio)
+        print(f"Updated profile for @{screen_name} with tag {cow_tag}")
 
-        # Load JPEG image from web instead of disk
+        # Load JPEG image from web and save it
         image_url = "https://i.imgur.com/WzzklgP.jpg"
         img_data = requests.get(image_url).content
-
-        # Save image temporarily
-        try:
-         with open("temp_profile.jpg", "rb") as f:
-          api.update_profile_image(filename="temp_profile.jpg", file=f)
-        except Exception as img_err:
-          print(f"Image upload failed: {img_err}")
+        with open("temp_profile.jpg", "wb") as f:
+            f.write(img_data)
+        print("Image downloaded and saved.")
 
         # Upload profile image
         with open("temp_profile.jpg", "rb") as f:
             api.update_profile_image(filename="temp_profile.jpg", file=f)
+        print("Profile image updated.")
 
         # Post tweet
         api.update_status(new_tweet)
+        print("Tweet posted.")
 
         return jsonify({"message": f"Updated Twitter profile for @{screen_name} with tag {cow_tag}!"})
 
     except Exception as e:
         print(f"Error during Twitter update: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/logout")
 def logout():
