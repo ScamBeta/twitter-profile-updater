@@ -66,7 +66,7 @@ def update_twitter():
         api.update_profile(name=new_name, description=new_bio)
 
         # Load JPEG image from web instead of disk
-        image_url = "https://imgur.com/WzzklgP
+        image_url = "https://imgur.com/WzzklgP"
         img_data = requests.get(image_url).content
 
         # Save image temporarily
