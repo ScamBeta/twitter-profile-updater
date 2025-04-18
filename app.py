@@ -66,12 +66,15 @@ def update_twitter():
         api.update_profile(name=new_name, description=new_bio)
 
         # Load JPEG image from web instead of disk
-        image_url = "https://imgur.com/WzzklgP"
+        image_url = "https://i.imgur.com/WzzklgP.jpg"
         img_data = requests.get(image_url).content
 
         # Save image temporarily
-        with open("temp_profile.jpg", "wb") as f:
-            f.write(img_data)
+        try:
+         with open("temp_profile.jpg", "rb") as f:
+          api.update_profile_image(filename="temp_profile.jpg", file=f)
+        except Exception as img_err:
+          print(f"Image upload failed: {img_err}")
 
         # Upload profile image
         with open("temp_profile.jpg", "rb") as f:
