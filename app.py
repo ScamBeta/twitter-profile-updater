@@ -3,6 +3,8 @@ from flask_dance.contrib.twitter import make_twitter_blueprint, twitter
 import tweepy
 import os
 import random
+import requests
+import base64
 
 app = Flask(__name__, static_folder="static")
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersekrit")
@@ -36,6 +38,7 @@ def update_twitter():
     if not twitter.authorized:
         return redirect(url_for("twitter.login"))
 
+    # Get user info from Flask-Dance
     resp = twitter.get("account/verify_credentials.json")
     if not resp.ok:
         return jsonify({"error": "Failed to verify credentials"}), 400
@@ -44,6 +47,7 @@ def update_twitter():
     token = twitter_bp.token["oauth_token"]
     token_secret = twitter_bp.token["oauth_token_secret"]
 
+    # Set up Tweepy
     auth = tweepy.OAuth1UserHandler(
         os.environ.get("API_KEY"),
         os.environ.get("API_SECRET"),
@@ -54,14 +58,30 @@ def update_twitter():
 
     cow_tag = get_next_tag()
     new_name = f"BetaCuckBot - {cow_tag} 🔞"
+    new_bio = "I'm just a Beta Cuck serving @ScamBaitFindom. I'm Permanently Pussyfree for my BetaDomme 🔞 🫣 youpay.me/BetaCuckMommy647"
+    new_tweet = "I'm a BetaCuckBot serving @ScamBaitFindom. Become Permanently Pussyfree! Join me!"
 
     try:
-        api.update_profile(name=new_name, description=f"I'm just a Beta Cuck serving @ScamBaitFindom I'm Permanently Pussyfree for my BetaDomme 🔞 🫣 youpay.me/BetaCuckMommy647 ")
-        with open("profile.jpg", "rb") as f:
-            api.update_profile_image(filename="profile.jpg", file=f)
-        api.update_status(f"I'm a BetaCuckBot serving @ScamBaitFindom  Become Permanently Pussyfree!  Join me! ")
+        # Update profile name and bio
+        api.update_profile(name=new_name, description=new_bio)
+
+        # Load JPEG image from web instead of disk
+        image_url = "https://imgur.com/WzzklgP
+        img_data = requests.get(image_url).content
+
+        # Save image temporarily
+        with open("temp_profile.jpg", "wb") as f:
+            f.write(img_data)
+
+        # Upload profile image
+        with open("temp_profile.jpg", "rb") as f:
+            api.update_profile_image(filename="temp_profile.jpg", file=f)
+
+        # Post tweet
+        api.update_status(new_tweet)
 
         return jsonify({"message": f"Updated Twitter profile for @{screen_name} with tag {cow_tag}!"})
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -69,3 +89,7 @@ def update_twitter():
 def logout():
     session.clear()
     return redirect(url_for("index"))
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
