@@ -83,6 +83,7 @@ def update_twitter():
         return jsonify({"message": f"Updated Twitter profile for @{screen_name} with tag {cow_tag}!"})
 
     except Exception as e:
+        print(f"Error during Twitter update: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/logout")
