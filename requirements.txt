@@ -1,5 +1,4 @@
-Flask
-tweepy
-Flask-Dance
-gunicorn
-requests-oauthlib
+Flask==2.3.3
+Flask-Dance==5.0.0
+tweepy==4.14.0
+gunicorn==21.2.0
