@@ -2,4 +2,4 @@ Flask
 tweepy
 Flask-Dance
 gunicorn
-
+requests-oauthlib
