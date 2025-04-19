@@ -63,9 +63,9 @@ def update_twitter():
         return jsonify({"error": f"Tweepy auth failed: {str(e)}"}), 500
 
     cow_tag = get_next_tag()
-    new_name = f"BetaCuckBot - {cow_tag} 🔞"
-    new_bio = "I'm just a Beta Cuck serving @ScamBaitFindom. I'm Permanently Pussyfree for my BetaDomme 🔞 🫣 youpay.me/BetaCuckMommy647"
-    new_tweet = "I'm a BetaCuckBot serving @ScamBaitFindom. Become Permanently Pussyfree! Join me!"
+    new_name = f"BetaCuck-{cow_tag}"
+    new_bio = "Beta Cuck for @ScamBaitFindom 🔞 Permanently Pussyfree 🫣 youpay.me/BetaCuckMommy647"
+    new_tweet = "I'm a BetaCuckBot serving @ScamBaitFindom. Become Permanently Pussyfree! Join me! http://bit.ly/3Gi9cOb"
 
     try:
         print("🔄 Updating profile...")
