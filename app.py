@@ -41,68 +41,68 @@ def update_twitter():
     # Get user info from Flask-Dance
     resp = twitter.get("account/verify_credentials.json")
     if not resp.ok:
-        print("❌ Twitter OAuth credentials invalid.")
+        print("❌ Could not verify credentials.")
         return jsonify({"error": "Failed to verify credentials"}), 400
 
     screen_name = resp.json()["screen_name"]
     token = twitter_bp.token["oauth_token"]
     token_secret = twitter_bp.token["oauth_token_secret"]
 
+    print(f"🔑 OAuth token: {token}")
+    print(f"🔐 OAuth secret: {token_secret}")
+    print(f"👤 Screen name: {screen_name}")
+
     # Set up Tweepy
+    auth = tweepy.OAuth1UserHandler(
+        os.environ.get("API_KEY"),
+        os.environ.get("API_SECRET"),
+        token,
+        token_secret
+    )
+    api = tweepy.API(auth)
+
     try:
-        auth = tweepy.OAuth1UserHandler(
-            os.environ.get("API_KEY"),
-            os.environ.get("API_SECRET"),
-            token,
-            token_secret
-        )
-        api = tweepy.API(auth)
+        api.verify_credentials()
         print("✅ Tweepy authentication succeeded.")
     except Exception as e:
-        print(f"❌ Tweepy auth error: {e}")
-        return jsonify({"error": f"Tweepy auth failed: {str(e)}"}), 500
+        print("❌ Tweepy authentication failed:", e)
+        return jsonify({"error": "Twitter auth failed"}), 500
 
     cow_tag = get_next_tag()
-    new_name = f"BetaCuck-{cow_tag}"
-    new_bio = "Beta Cuck for @ScamBaitFindom 🔞 Permanently Pussyfree 🫣 youpay.me/BetaCuckMommy647"
-    new_tweet = "I'm a BetaCuckBot serving @ScamBaitFindom. Become Permanently Pussyfree! Join me! http://bit.ly/3Gi9cOb"
+    new_name = f"BetaCuckBot - {cow_tag} 🔞"
+    new_bio = "I'm just a Beta Cuck serving @ScamBaitFindom. I'm Permanently Pussyfree for my BetaDomme 🔞 🫣 youpay.me/BetaCuckMommy647"
+    new_tweet = "I'm a BetaCuckBot serving @ScamBaitFindom. Become Permanently Pussyfree! Join me!"
+
+    print("🔄 Updating profile...")
 
     try:
-        print("🔄 Updating profile...")
-        api.update_profile(name=new_name)
-        #api.update_profile(name=new_name, description=new_bio)
-        print("✅ Profile updated.")
-    except Exception as e:
-        print(f"❌ Profile update error: {e}")
+        response = api.update_profile(name=new_name, description=new_bio)
+        print(f"✅ Profile updated: {response}")
+    except tweepy.TweepyException as e:
+        print("❌ Profile update error:", e)
+        if hasattr(e, 'response') and e.response is not None:
+            print("📨 Twitter API response body:", e.response.text)
         return jsonify({"error": f"Profile update failed: {str(e)}"}), 500
 
     try:
-        print("📥 Downloading profile image...")
         image_url = "https://i.imgur.com/WzzklgP.jpg"
         img_data = requests.get(image_url).content
+
         with open("temp_profile.jpg", "wb") as f:
             f.write(img_data)
-        print("✅ Image saved.")
-    except Exception as e:
-        print(f"❌ Image download error: {e}")
-        return jsonify({"error": f"Image download failed: {str(e)}"}), 500
 
-    try:
-        print("📤 Uploading profile image...")
         with open("temp_profile.jpg", "rb") as f:
             api.update_profile_image(filename="temp_profile.jpg", file=f)
-        print("✅ Profile image uploaded.")
-    except Exception as e:
-        print(f"❌ Profile image upload error: {e}")
-        return jsonify({"error": f"Profile image upload failed: {str(e)}"}), 500
+
+        print("🖼️ Profile image updated.")
+    except Exception as img_err:
+        print(f"❌ Image upload failed: {img_err}")
 
     try:
-        print("🐦 Posting tweet...")
-        api.update_status(new_tweet)
-        print("✅ Tweet posted.")
-    except Exception as e:
-        print(f"❌ Tweet post error: {e}")
-        return jsonify({"error": f"Tweet failed: {str(e)}"}), 500
+        tweet_response = api.update_status(new_tweet)
+        print(f"🐦 Tweet posted: {tweet_response.id}")
+    except Exception as tweet_err:
+        print(f"❌ Tweet post failed: {tweet_err}")
 
     return jsonify({"message": f"Updated Twitter profile for @{screen_name} with tag {cow_tag}!"})
 
