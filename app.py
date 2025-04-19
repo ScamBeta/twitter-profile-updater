@@ -89,7 +89,7 @@ def update_twitter():
 
     # Upload profile image
     try:
-        image_url = "https://github.com/ScamBeta/twitter-profile-updater/blob/62f8ef37e895369a970f8433a00ec0eaa1cc9e2c/images/profile.jpg"
+        image_url = "https://raw.githubusercontent.com/ScamBeta/twitter-profile-updater/62f8ef37e895369a970f8433a00ec0eaa1cc9e2c/images/profile.jpg"
         image_path = "temp_profile.jpg"
 
         # Download image
