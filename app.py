@@ -69,7 +69,8 @@ def update_twitter():
 
     try:
         print("🔄 Updating profile...")
-        api.update_profile(name=new_name, description=new_bio)
+        api.update_profile(name=new_name)
+        #api.update_profile(name=new_name, description=new_bio)
         print("✅ Profile updated.")
     except Exception as e:
         print(f"❌ Profile update error: {e}")
