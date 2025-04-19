@@ -75,6 +75,7 @@ def update_twitter():
 
     print("🔄 Updating profile...")
 
+    # Update profile name and bio
     try:
         response = api.update_profile(name=new_name, description=new_bio)
         print(f"✅ Profile updated: {response}")
@@ -84,20 +85,31 @@ def update_twitter():
             print("📨 Twitter API response body:", e.response.text)
         return jsonify({"error": f"Profile update failed: {str(e)}"}), 500
 
+    # Upload profile image
     try:
         image_url = "https://i.imgur.com/WzzklgP.jpg"
-        img_data = requests.get(image_url).content
+        image_path = "temp_profile.jpg"
 
-        with open("temp_profile.jpg", "wb") as f:
+        # Download image
+        img_data = requests.get(image_url).content
+        with open(image_path, "wb") as f:
             f.write(img_data)
 
-        with open("temp_profile.jpg", "rb") as f:
-            api.update_profile_image(filename="temp_profile.jpg", file=f)
-
+        # Upload to Twitter
+        with open(image_path, "rb") as f:
+            api.update_profile_image(filename=image_path, file=f)
         print("🖼️ Profile image updated.")
+
     except Exception as img_err:
         print(f"❌ Image upload failed: {img_err}")
 
+    finally:
+        # Clean up temp file
+        if os.path.exists(image_path):
+            os.remove(image_path)
+            print("🧹 Temp file removed.")
+
+    # Tweet new status
     try:
         tweet_response = api.update_status(new_tweet)
         print(f"🐦 Tweet posted: {tweet_response.id}")
