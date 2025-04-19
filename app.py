@@ -75,7 +75,7 @@ def update_twitter():
     new_tweet = "I'm a BetaCuckBot serving @ScamBaitFindom. Become Permanently Pussyfree! Join me!"
 
     print("🔄 Updating profile...")
-time.sleep(2)
+    time.sleep(2)
 
     # Update profile name and bio
     try:
