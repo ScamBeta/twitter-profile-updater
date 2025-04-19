@@ -41,6 +41,7 @@ def update_twitter():
     # Get user info from Flask-Dance
     resp = twitter.get("account/verify_credentials.json")
     if not resp.ok:
+        print("❌ Twitter OAuth credentials invalid.")
         return jsonify({"error": "Failed to verify credentials"}), 400
 
     screen_name = resp.json()["screen_name"]
@@ -48,13 +49,18 @@ def update_twitter():
     token_secret = twitter_bp.token["oauth_token_secret"]
 
     # Set up Tweepy
-    auth = tweepy.OAuth1UserHandler(
-        os.environ.get("API_KEY"),
-        os.environ.get("API_SECRET"),
-        token,
-        token_secret
-    )
-    api = tweepy.API(auth)
+    try:
+        auth = tweepy.OAuth1UserHandler(
+            os.environ.get("API_KEY"),
+            os.environ.get("API_SECRET"),
+            token,
+            token_secret
+        )
+        api = tweepy.API(auth)
+        print("✅ Tweepy authentication succeeded.")
+    except Exception as e:
+        print(f"❌ Tweepy auth error: {e}")
+        return jsonify({"error": f"Tweepy auth failed: {str(e)}"}), 500
 
     cow_tag = get_next_tag()
     new_name = f"BetaCuckBot - {cow_tag} 🔞"
@@ -62,31 +68,43 @@ def update_twitter():
     new_tweet = "I'm a BetaCuckBot serving @ScamBaitFindom. Become Permanently Pussyfree! Join me!"
 
     try:
-        # Update profile name and bio
+        print("🔄 Updating profile...")
         api.update_profile(name=new_name, description=new_bio)
-        print(f"Updated profile for @{screen_name} with tag {cow_tag}")
+        print("✅ Profile updated.")
+    except Exception as e:
+        print(f"❌ Profile update error: {e}")
+        return jsonify({"error": f"Profile update failed: {str(e)}"}), 500
 
-        # Load JPEG image from web and save it
+    try:
+        print("📥 Downloading profile image...")
         image_url = "https://i.imgur.com/WzzklgP.jpg"
         img_data = requests.get(image_url).content
         with open("temp_profile.jpg", "wb") as f:
             f.write(img_data)
-        print("Image downloaded and saved.")
+        print("✅ Image saved.")
+    except Exception as e:
+        print(f"❌ Image download error: {e}")
+        return jsonify({"error": f"Image download failed: {str(e)}"}), 500
 
-        # Upload profile image
+    try:
+        print("📤 Uploading profile image...")
         with open("temp_profile.jpg", "rb") as f:
             api.update_profile_image(filename="temp_profile.jpg", file=f)
-        print("Profile image updated.")
-
-        # Post tweet
-        api.update_status(new_tweet)
-        print("Tweet posted.")
-
-        return jsonify({"message": f"Updated Twitter profile for @{screen_name} with tag {cow_tag}!"})
-
+        print("✅ Profile image uploaded.")
     except Exception as e:
-        print(f"Error during Twitter update: {e}")
-        return jsonify({"error": str(e)}), 500
+        print(f"❌ Profile image upload error: {e}")
+        return jsonify({"error": f"Profile image upload failed: {str(e)}"}), 500
+
+    try:
+        print("🐦 Posting tweet...")
+        api.update_status(new_tweet)
+        print("✅ Tweet posted.")
+    except Exception as e:
+        print(f"❌ Tweet post error: {e}")
+        return jsonify({"error": f"Tweet failed: {str(e)}"}), 500
+
+    return jsonify({"message": f"Updated Twitter profile for @{screen_name} with tag {cow_tag}!"})
+
 
 
 @app.route("/logout")
