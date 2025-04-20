@@ -1,12 +1,11 @@
 from flask import Flask, redirect, url_for, session, jsonify, send_from_directory
 from flask_dance.contrib.twitter import make_twitter_blueprint, twitter
+from requests_oauthlib import OAuth1
 import tweepy
 import os
 import random
 import requests
-import base64
 import time
-from requests_oauthlib import OAuth1
 
 app = Flask(__name__, static_folder="static")
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersekrit")
@@ -18,13 +17,12 @@ twitter_bp = make_twitter_blueprint(
 )
 app.register_blueprint(twitter_bp, url_prefix="/login")
 
-# In-memory set to track used tags
 used_tags = set()
 
 def get_next_tag():
     while True:
         tag_number = random.randint(0, 9999)
-        tag = f"BC{tag_number:04d}"  # e.g., BC0429
+        tag = f"BC{tag_number:04d}"
         if tag not in used_tags:
             used_tags.add(tag)
             return tag
@@ -40,21 +38,14 @@ def update_twitter():
     if not twitter.authorized:
         return redirect(url_for("twitter.login"))
 
-    # Get user info from Flask-Dance
     resp = twitter.get("account/verify_credentials.json")
     if not resp.ok:
-        print("❌ Could not verify credentials.")
         return jsonify({"error": "Failed to verify credentials"}), 400
 
     screen_name = resp.json()["screen_name"]
     token = twitter_bp.token["oauth_token"]
     token_secret = twitter_bp.token["oauth_token_secret"]
 
-    print(f"🔑 OAuth token: {token}")
-    print(f"🔐 OAuth secret: {token_secret}")
-    print(f"👤 Screen name: {screen_name}")
-
-    # Set up Tweepy
     auth = tweepy.OAuth1UserHandler(
         os.environ.get("API_KEY"),
         os.environ.get("API_SECRET"),
@@ -65,72 +56,46 @@ def update_twitter():
 
     try:
         api.verify_credentials()
-        print("✅ Tweepy authentication succeeded.")
     except Exception as e:
-        print("❌ Tweepy authentication failed:", e)
         return jsonify({"error": "Twitter auth failed"}), 500
 
     cow_tag = get_next_tag()
     new_name = f"BetaCuckBot - {cow_tag} 🔞"
     new_bio = "I'm just a Beta Cuck serving @ScamBaitFindom. I'm Permanently Pussyfree for my BetaDomme 🔞 🫣 youpay.me/BetaCuckMommy647"
-    new_tweet = "I'm a BetaCuckBot serving @ScamBaitFindom. Become Permanently Pussyfree! Join me!"
+    new_tweet = "I'm a BetaCuckBot serving @ScamBaitFindom. Become Permanently Pussyfree! 🔞 🫣 Join me! https://bit.ly/3Gi9cOb"
 
-    print("🔄 Updating profile...")
-    time.sleep(2)
-
-    # Update profile name and bio
     try:
-        response = api.update_profile(name=new_name, description=new_bio)
-        print(f"✅ Profile updated: {response}")
+        api.update_profile(name=new_name, description=new_bio)
     except tweepy.TweepyException as e:
-        print("❌ Profile update error:", e)
-        if hasattr(e, 'response') and e.response is not None:
-            print("📨 Twitter API response body:", e.response.text)
         return jsonify({"error": f"Profile update failed: {str(e)}"}), 500
 
-    # Upload profile image
     try:
-        image_url = "https://raw.githubusercontent.com/ScamBeta/twitter-profile-updater/62f8ef37e895369a970f8433a00ec0eaa1cc9e2c/images/profile.jpg"
-        image_path = "temp_profile.jpg"
-
-        # Download image
+        image_url = "https://raw.githubusercontent.com/ScamBeta/twitter-profile-updater/f6193417cc8cd9500c4ea0ead93704fc5211d2e2/images/beta_belle3.jpg"
+        image_path = "temp_tweet.jpg"
         img_data = requests.get(image_url).content
         with open(image_path, "wb") as f:
             f.write(img_data)
 
-        # Upload to Twitter
-        with open(image_path, "rb") as f:
-            api.update_profile_image(filename=image_path, file=f)
-        print("🖼️ Profile image updated.")
+        # Upload image using v1.1 media/upload
+        media = api.media_upload(image_path)
+        media_id = media.media_id_string
+        print(f"📸 Media uploaded with ID: {media_id}")
+
     except Exception as img_err:
         print(f"❌ Image upload failed: {img_err}")
+        media_id = None
     finally:
         if os.path.exists(image_path):
             os.remove(image_path)
-            print("🧹 Temp file removed.")
 
-    # Tweet using v2 API
     try:
-        url = "https://api.twitter.com/2/tweets"
-        payload = {"text": new_tweet}
-
-        auth = OAuth1(
-            os.environ.get("API_KEY"),
-            os.environ.get("API_SECRET"),
-            token,
-            token_secret
-        )
-
-        response = requests.post(url, json=payload, auth=auth)
-
-        if response.status_code == 201:
-            tweet_id = response.json()["data"]["id"]
-            print(f"🐦 Tweet posted via v2: {tweet_id}")
+        if media_id:
+            tweet_response = api.update_status(status=new_tweet, media_ids=[media_id])
         else:
-            print(f"❌ Failed to tweet via v2: {response.status_code}")
-            print("📨 Response:", response.text)
+            tweet_response = api.update_status(status=new_tweet)
+        print(f"🐦 Tweet posted: {tweet_response.id}")
     except Exception as tweet_err:
-        print(f"❌ Tweet post (v2) failed: {tweet_err}")
+        print(f"❌ Tweet post failed: {tweet_err}")
 
     return jsonify({"message": f"Updated Twitter profile for @{screen_name} with tag {cow_tag}!"})
 
@@ -142,3 +107,4 @@ def logout():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
