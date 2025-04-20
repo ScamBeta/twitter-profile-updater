@@ -112,11 +112,32 @@ def update_twitter():
             print("🧹 Temp file removed.")
 
     # Tweet new status
-    try:
-        tweet_response = api.update_status(new_tweet)
-        print(f"🐦 Tweet posted: {tweet_response.id}")
-    except Exception as tweet_err:
-        print(f"❌ Tweet post failed: {tweet_err}")
+from requests_oauthlib import OAuth1
+
+# Tweet new status using Twitter API v2
+try:
+    url = "https://api.twitter.com/2/tweets"
+    payload = {"text": new_tweet}
+
+    auth = OAuth1(
+        os.environ.get("API_KEY"),
+        os.environ.get("API_SECRET"),
+        token,
+        token_secret
+    )
+
+    response = requests.post(url, json=payload, auth=auth)
+
+    if response.status_code == 201:
+        tweet_id = response.json()["data"]["id"]
+        print(f"🐦 Tweet posted via v2: {tweet_id}")
+    else:
+        print(f"❌ Failed to tweet via v2: {response.status_code}")
+        print("📨 Response:", response.text)
+
+except Exception as tweet_err:
+    print(f"❌ Tweet post (v2) failed: {tweet_err}")
+
 
     return jsonify({"message": f"Updated Twitter profile for @{screen_name} with tag {cow_tag}!"})
 
