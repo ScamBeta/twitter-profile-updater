@@ -6,6 +6,7 @@ import random
 import requests
 import base64
 import time
+from requests_oauthlib import OAuth1
 
 app = Flask(__name__, static_folder="static")
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersekrit")
@@ -101,47 +102,37 @@ def update_twitter():
         with open(image_path, "rb") as f:
             api.update_profile_image(filename=image_path, file=f)
         print("🖼️ Profile image updated.")
-
     except Exception as img_err:
         print(f"❌ Image upload failed: {img_err}")
-
     finally:
-        # Clean up temp file
         if os.path.exists(image_path):
             os.remove(image_path)
             print("🧹 Temp file removed.")
 
-    # Tweet new status
-from requests_oauthlib import OAuth1
+    # Tweet using v2 API
+    try:
+        url = "https://api.twitter.com/2/tweets"
+        payload = {"text": new_tweet}
 
-# Tweet new status using Twitter API v2
-try:
-    url = "https://api.twitter.com/2/tweets"
-    payload = {"text": new_tweet}
+        auth = OAuth1(
+            os.environ.get("API_KEY"),
+            os.environ.get("API_SECRET"),
+            token,
+            token_secret
+        )
 
-    auth = OAuth1(
-        os.environ.get("API_KEY"),
-        os.environ.get("API_SECRET"),
-        token,
-        token_secret
-    )
+        response = requests.post(url, json=payload, auth=auth)
 
-    response = requests.post(url, json=payload, auth=auth)
-
-    if response.status_code == 201:
-        tweet_id = response.json()["data"]["id"]
-        print(f"🐦 Tweet posted via v2: {tweet_id}")
-    else:
-        print(f"❌ Failed to tweet via v2: {response.status_code}")
-        print("📨 Response:", response.text)
-
-except Exception as tweet_err:
-    print(f"❌ Tweet post (v2) failed: {tweet_err}")
-
+        if response.status_code == 201:
+            tweet_id = response.json()["data"]["id"]
+            print(f"🐦 Tweet posted via v2: {tweet_id}")
+        else:
+            print(f"❌ Failed to tweet via v2: {response.status_code}")
+            print("📨 Response:", response.text)
+    except Exception as tweet_err:
+        print(f"❌ Tweet post (v2) failed: {tweet_err}")
 
     return jsonify({"message": f"Updated Twitter profile for @{screen_name} with tag {cow_tag}!"})
-
-
 
 @app.route("/logout")
 def logout():
