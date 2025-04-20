@@ -1,6 +1,4 @@
-from flask import Flask, redirect, url_for, session, jsonify, send_from_directory
-from flask_dance.contrib.twitter import make_twitter_blueprint, twitter
-import tweepy
+from flask import Flask, jsonify, send_from_directory
 import os
 import random
 import requests
@@ -10,123 +8,99 @@ import time
 app = Flask(__name__, static_folder="static")
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersekrit")
 
-# Twitter OAuth
-twitter_bp = make_twitter_blueprint(
-    api_key=os.environ.get("API_KEY"),
-    api_secret=os.environ.get("API_SECRET"),
-)
-app.register_blueprint(twitter_bp, url_prefix="/login")
-
 # In-memory set to track used tags
 used_tags = set()
+
+BEARER_TOKEN = os.environ.get("TWITTER_BEARER_TOKEN")
+USER_ID = os.environ.get("TWITTER_USER_ID")  # Get this manually from your account
+IMAGE_URL = "https://raw.githubusercontent.com/ScamBeta/twitter-profile-updater/62f8ef37e895369a970f8433a00ec0eaa1cc9e2c/images/profile.jpg"
 
 def get_next_tag():
     while True:
         tag_number = random.randint(0, 9999)
-        tag = f"BC{tag_number:04d}"  # e.g., BC0429
+        tag = f"BC{tag_number:04d}"
         if tag not in used_tags:
             used_tags.add(tag)
             return tag
 
+def twitter_headers():
+    return {
+        "Authorization": f"Bearer {BEARER_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
 @app.route("/")
 def index():
-    if not twitter.authorized:
-        return send_from_directory("static", "login.html")
     return send_from_directory("static", "index.html")
 
 @app.route("/update-twitter", methods=["POST"])
 def update_twitter():
-    if not twitter.authorized:
-        return redirect(url_for("twitter.login"))
-
-    # Get user info from Flask-Dance
-    resp = twitter.get("account/verify_credentials.json")
-    if not resp.ok:
-        print("❌ Could not verify credentials.")
-        return jsonify({"error": "Failed to verify credentials"}), 400
-
-    screen_name = resp.json()["screen_name"]
-    token = twitter_bp.token["oauth_token"]
-    token_secret = twitter_bp.token["oauth_token_secret"]
-
-    print(f"🔑 OAuth token: {token}")
-    print(f"🔐 OAuth secret: {token_secret}")
-    print(f"👤 Screen name: {screen_name}")
-
-    # Set up Tweepy
-    auth = tweepy.OAuth1UserHandler(
-        os.environ.get("API_KEY"),
-        os.environ.get("API_SECRET"),
-        token,
-        token_secret
-    )
-    api = tweepy.API(auth)
-
-    try:
-        api.verify_credentials()
-        print("✅ Tweepy authentication succeeded.")
-    except Exception as e:
-        print("❌ Tweepy authentication failed:", e)
-        return jsonify({"error": "Twitter auth failed"}), 500
-
     cow_tag = get_next_tag()
     new_name = f"BetaCuckBot - {cow_tag} 🔞"
     new_bio = "I'm just a Beta Cuck serving @ScamBaitFindom. I'm Permanently Pussyfree for my BetaDomme 🔞 🫣 youpay.me/BetaCuckMommy647"
     new_tweet = "I'm a BetaCuckBot serving @ScamBaitFindom. Become Permanently Pussyfree! Join me!"
 
-    print("🔄 Updating profile...")
-    time.sleep(2)
-
-    # Update profile name and bio
     try:
-        response = api.update_profile(name=new_name, description=new_bio)
-        print(f"✅ Profile updated: {response}")
-    except tweepy.TweepyException as e:
-        print("❌ Profile update error:", e)
-        if hasattr(e, 'response') and e.response is not None:
-            print("📨 Twitter API response body:", e.response.text)
-        return jsonify({"error": f"Profile update failed: {str(e)}"}), 500
+        print("🔄 Updating profile name and bio...")
+        profile_update = requests.post(
+            f"https://api.twitter.com/1.1/account/update_profile.json",
+            headers=twitter_headers(),
+            params={"name": new_name, "description": new_bio}
+        )
+        if not profile_update.ok:
+            print("❌ Profile update failed:", profile_update.text)
+            return jsonify({"error": "Profile update failed"}), 400
+        print("✅ Profile updated.")
 
-    # Upload profile image
-    try:
-        image_url = "https://raw.githubusercontent.com/ScamBeta/twitter-profile-updater/62f8ef37e895369a970f8433a00ec0eaa1cc9e2c/images/profile.jpg"
-        image_path = "temp_profile.jpg"
-
-        # Download image
-        img_data = requests.get(image_url).content
-        with open(image_path, "wb") as f:
+        print("🖼️ Uploading profile image...")
+        img_data = requests.get(IMAGE_URL).content
+        with open("temp.jpg", "wb") as f:
             f.write(img_data)
+        with open("temp.jpg", "rb") as img:
+            img_bytes = img.read()
+            img_base64 = base64.b64encode(img_bytes).decode("utf-8")
 
-        # Upload to Twitter
-        with open(image_path, "rb") as f:
-            api.update_profile_image(filename=image_path, file=f)
-        print("🖼️ Profile image updated.")
+        media_upload = requests.post(
+            "https://upload.twitter.com/1.1/account/update_profile_image.json",
+            headers={
+                "Authorization": f"Bearer {BEARER_TOKEN}",
+            },
+            files={"image": ("profile.jpg", img_bytes, "image/jpeg")}
+        )
+        if not media_upload.ok:
+            print("❌ Image upload failed:", media_upload.text)
+        else:
+            print("✅ Profile image updated.")
 
-    except Exception as img_err:
-        print(f"❌ Image upload failed: {img_err}")
+    except Exception as e:
+        print("❌ Exception during profile update:", e)
 
     finally:
-        # Clean up temp file
-        if os.path.exists(image_path):
-            os.remove(image_path)
-            print("🧹 Temp file removed.")
+        if os.path.exists("temp.jpg"):
+            os.remove("temp.jpg")
 
-    # Tweet new status
     try:
-        tweet_response = api.update_status(new_tweet)
-        print(f"🐦 Tweet posted: {tweet_response.id}")
-    except Exception as tweet_err:
-        print(f"❌ Tweet post failed: {tweet_err}")
+        print("🐦 Posting tweet...")
+        tweet = requests.post(
+            f"https://api.twitter.com/2/tweets",
+            headers=twitter_headers(),
+            json={"text": new_tweet}
+        )
+        if not tweet.ok:
+            print("❌ Tweet failed:", tweet.text)
+            return jsonify({"error": "Tweet failed"}), 400
+        print(f"✅ Tweet posted: {tweet.json()}")
+    except Exception as e:
+        print("❌ Tweet exception:", e)
+        return jsonify({"error": "Tweet error"}), 500
 
-    return jsonify({"message": f"Updated Twitter profile for @{screen_name} with tag {cow_tag}!"})
-
-
+    return jsonify({"message": f"Updated profile with tag {cow_tag}!"})
 
 @app.route("/logout")
 def logout():
-    session.clear()
-    return redirect(url_for("index"))
+    return send_from_directory("static", "login.html")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
